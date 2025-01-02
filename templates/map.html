@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Car GPS Tracker</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        #map-container {
+            position: relative;
+            height: 100vh;
+        }
+        #map {
+            height: 100%;
+        }
+        .logout-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        .logout-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="map-container">
+        <button class="logout-button" onclick="window.location.href='/logout'">Logout</button>
+        <div id="map"></div>
+    </div>
+    <script>
+        let map = L.map('map').setView([23.6850, 90.3563], 7); // Center map in Bangladesh
+    
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+    
+        // Store car markers
+        let carMarkers = {};
+    
+        // Function to smoothly animate a marker
+        function animateMarker(marker, newLatLng) {
+            let start = marker.getLatLng();
+            let startTime = performance.now();
+            let duration = 1000; // 1 second
+    
+            function animate(timestamp) {
+                let progress = Math.min((timestamp - startTime) / duration, 1);
+                let currentLat = start.lat + (newLatLng.lat - start.lat) * progress;
+                let currentLng = start.lng + (newLatLng.lng - start.lng) * progress;
+    
+                marker.setLatLng([currentLat, currentLng]);
+    
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+    
+            requestAnimationFrame(animate);
+        }
+    
+        // Function to update car positions
+        function updateCarPositions() {
+            $.getJSON('/get_cars_data', function(data) {
+                for (const [carId, coordinates] of Object.entries(data)) {
+                    let newLatLng = { lat: coordinates[0], lng: coordinates[1] };
+    
+                    if (carMarkers[carId]) {
+                        animateMarker(carMarkers[carId], newLatLng); // Smoothly move marker
+                    } else {
+                        // Create a new marker
+                        carMarkers[carId] = L.marker(newLatLng).addTo(map).bindPopup(carId);
+                    }
+                }
+            });
+        }
+    
+        // Update positions every 5 seconds
+        setInterval(updateCarPositions, 5000);
+    
+        // Initial load
+        updateCarPositions();
+    </script>    
+</body>
+</html>
